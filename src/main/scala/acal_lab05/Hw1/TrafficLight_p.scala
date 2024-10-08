@@ -22,7 +22,9 @@ class TrafficLight_p(Ytime:Int, Gtime:Int, Ptime:Int) extends Module{
 
   val sIdle :: sHGVR :: sHYVR :: sHRVG :: sHRVY :: sPG :: Nil = Enum(6)
   val state = RegInit(sIdle)
+  // record previous state when P_button trigger
   val prevState = RegInit(sIdle)
+  // record whether sPG state triggered by P_button
   val buttonTrigger = RegInit(false.B)
 
   //Counter============================
@@ -32,11 +34,14 @@ class TrafficLight_p(Ytime:Int, Gtime:Int, Ptime:Int) extends Module{
   cntDone := cntReg === 0.U
 
   when(cntDone){
-    when(cntMode === 0.U){ // 綠燈
+    when(cntMode === 0.U){
+      // 綠燈
       cntReg := (Gtime-1).U
-    }.elsewhen(cntMode === 1.U){ // 黃燈
+    }.elsewhen(cntMode === 1.U){
+      // 黃燈
       cntReg := (Ytime-1).U
-    }.otherwise{ // 行人
+    }.otherwise{
+      // 行人
       cntReg := (Ptime-1).U
     }
   }.otherwise{
@@ -51,6 +56,7 @@ class TrafficLight_p(Ytime:Int, Gtime:Int, Ptime:Int) extends Module{
     }
     is(sHGVR){
       when(io.P_button){
+        // record current state, buttonTrigger, change state to sPG
         buttonTrigger := true.B
         prevState := sHGVR
         state := sPG
@@ -60,6 +66,7 @@ class TrafficLight_p(Ytime:Int, Gtime:Int, Ptime:Int) extends Module{
     }
     is(sHYVR){
       when(io.P_button){
+        // record current state, buttonTrigger, change state to sPG
         buttonTrigger := true.B
         prevState := sHYVR
         state := sPG
@@ -69,6 +76,7 @@ class TrafficLight_p(Ytime:Int, Gtime:Int, Ptime:Int) extends Module{
     }
     is(sHRVG){
       when(io.P_button){
+        // record current state, buttonTrigger, change state to sPG
         buttonTrigger := true.B
         prevState := sHRVG
         state := sPG
@@ -78,6 +86,7 @@ class TrafficLight_p(Ytime:Int, Gtime:Int, Ptime:Int) extends Module{
     }
     is(sHRVY){
       when(io.P_button){
+        // record current state, buttonTrigger, change state to sPG
         buttonTrigger := true.B
         prevState := sHRVY
         state := sPG
@@ -87,8 +96,11 @@ class TrafficLight_p(Ytime:Int, Gtime:Int, Ptime:Int) extends Module{
     }
     is(sPG){
       when(cntDone){
+        // if triggered by P_button
         when(buttonTrigger){
+          // switch back to previous state
           state := prevState
+          // set buttonTrigger to false
           buttonTrigger := false.B
         }.otherwise{
           state := sHGVR
@@ -107,6 +119,7 @@ class TrafficLight_p(Ytime:Int, Gtime:Int, Ptime:Int) extends Module{
   switch(state){
     is(sHGVR){
       when(io.P_button){
+        // end current time counter, switch cntMode to 2
         cntDone := true.B
         cntMode := 2.U
       }.otherwise{
@@ -118,6 +131,7 @@ class TrafficLight_p(Ytime:Int, Gtime:Int, Ptime:Int) extends Module{
     }
     is(sHYVR){
       when(io.P_button){
+        // end current time counter, switch cntMode to 2
         cntDone := true.B
         cntMode := 2.U
       }.otherwise{
@@ -129,6 +143,7 @@ class TrafficLight_p(Ytime:Int, Gtime:Int, Ptime:Int) extends Module{
     }
     is(sHRVG){
       when(io.P_button){
+        // end current time counter, switch cntMode to 2
         cntDone := true.B
         cntMode := 2.U
       }.otherwise{
@@ -140,6 +155,7 @@ class TrafficLight_p(Ytime:Int, Gtime:Int, Ptime:Int) extends Module{
     }
     is(sHRVY){
       when(io.P_button){
+        // end current time counter
         cntDone := true.B
       }
       cntMode := 2.U
@@ -149,6 +165,7 @@ class TrafficLight_p(Ytime:Int, Gtime:Int, Ptime:Int) extends Module{
     }
     is(sPG){
       when(buttonTrigger){
+        // hold previous state's cntMode
         switch(prevState){
           is(sHGVR){
             cntMode := 0.U
