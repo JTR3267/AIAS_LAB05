@@ -13,8 +13,164 @@ class TrafficLight_p(Ytime:Int, Gtime:Int, Ptime:Int) extends Module{
   })
 
   //please implement your code below...
-  io.H_traffic := 0.U
-  io.V_traffic := 0.U
-  io.P_traffic := 0.U
-  io.timer := 0.U
+
+  //parameter declaration
+  val Off = 0.U
+  val Red = 1.U
+  val Yellow = 2.U
+  val Green = 3.U
+
+  val sIdle :: sHGVR :: sHYVR :: sHRVG :: sHRVY :: sPG :: Nil = Enum(6)
+  val state = RegInit(sIdle)
+  val prevState = RegInit(sIdle)
+  val buttonTrigger = RegInit(false.B)
+
+  //Counter============================
+  val cntMode = WireDefault(0.U(2.W))
+  val cntReg = RegInit(0.U(4.W))
+  val cntDone = Wire(Bool())
+  cntDone := cntReg === 0.U
+
+  when(cntDone){
+    when(cntMode === 0.U){ // 綠燈
+      cntReg := (Gtime-1).U
+    }.elsewhen(cntMode === 1.U){ // 黃燈
+      cntReg := (Ytime-1).U
+    }.otherwise{ // 行人
+      cntReg := (Ptime-1).U
+    }
+  }.otherwise{
+    cntReg := cntReg - 1.U
+  }
+  //Counter end========================
+
+  //Next State Decoder
+  switch(state){
+    is(sIdle){
+      state := sHGVR
+    }
+    is(sHGVR){
+      when(io.P_button){
+        buttonTrigger := true.B
+        prevState := sHGVR
+        state := sPG
+      }.elsewhen(cntDone){
+        state := sHYVR
+      }
+    }
+    is(sHYVR){
+      when(io.P_button){
+        buttonTrigger := true.B
+        prevState := sHYVR
+        state := sPG
+      }.elsewhen(cntDone){
+        state := sHRVG
+      }
+    }
+    is(sHRVG){
+      when(io.P_button){
+        buttonTrigger := true.B
+        prevState := sHRVG
+        state := sPG
+      }.elsewhen(cntDone){
+        state := sHRVY
+      }
+    }
+    is(sHRVY){
+      when(io.P_button){
+        buttonTrigger := true.B
+        prevState := sHRVY
+        state := sPG
+      }.elsewhen(cntDone){
+        state := sPG
+      }
+    }
+    is(sPG){
+      when(cntDone){
+        when(buttonTrigger){
+          state := prevState
+          buttonTrigger := false.B
+        }.otherwise{
+          state := sHGVR
+        }
+      }
+    }
+  }
+
+  //Output Decoder
+  //Default statement
+  cntMode := 0.U
+  io.H_traffic := Off
+  io.V_traffic := Off
+  io.P_traffic := Off
+
+  switch(state){
+    is(sHGVR){
+      when(io.P_button){
+        cntDone := true.B
+        cntMode := 2.U
+      }.otherwise{
+        cntMode := 1.U
+      }
+      io.H_traffic := Green
+      io.V_traffic := Red
+      io.P_traffic := Red
+    }
+    is(sHYVR){
+      when(io.P_button){
+        cntDone := true.B
+        cntMode := 2.U
+      }.otherwise{
+        cntMode := 0.U
+      }
+      io.H_traffic := Yellow
+      io.V_traffic := Red
+      io.P_traffic := Red
+    }
+    is(sHRVG){
+      when(io.P_button){
+        cntDone := true.B
+        cntMode := 2.U
+      }.otherwise{
+        cntMode := 1.U
+      }
+      io.H_traffic := Red
+      io.V_traffic := Green
+      io.P_traffic := Red
+    }
+    is(sHRVY){
+      when(io.P_button){
+        cntDone := true.B
+      }
+      cntMode := 2.U
+      io.H_traffic := Red
+      io.V_traffic := Yellow
+      io.P_traffic := Red
+    }
+    is(sPG){
+      when(buttonTrigger){
+        switch(prevState){
+          is(sHGVR){
+            cntMode := 0.U
+          }
+          is(sHYVR){
+            cntMode := 1.U
+          }
+          is(sHRVG){
+            cntMode := 0.U
+          }
+          is(sHRVY){
+            cntMode := 1.U
+          }
+        }
+      }.otherwise{
+        cntMode := 0.U
+      }
+      io.H_traffic := Red
+      io.V_traffic := Red
+      io.P_traffic := Green
+    }
+  }
+  
+  io.timer := cntReg
 }
