@@ -16,8 +16,6 @@ class NegIntGen extends Module{
     val sIdle :: sAccept :: sEqual :: Nil = Enum(3)
     val state = RegInit(sIdle)
 
-    // record whether input is a negative number
-    val negNum = RegInit(false.B)
     //Next State Decoder
     switch(state){
         is(sIdle){
@@ -29,8 +27,6 @@ class NegIntGen extends Module{
             }
         }
         is(sEqual){
-            // reset negNum register to false in sEqual state
-            negNum := false.B
             state := sAccept
         }
     }
@@ -42,9 +38,10 @@ class NegIntGen extends Module{
         when(in_buffer <= 9.U){
             // for number input
             number := (number<<3.U) + (number<<1.U) + in_buffer
-        }.elsewhen(in_buffer < 15.U){
-            // for input "(", ")", "-", set negNum register to true
-            negNum := true.B
+        }.elsewhen(in_buffer === 14.U){
+            // negative number start with "(-", end with ")"
+            // set number to its 2's complement when get input ")"
+            number := ~number + 1.U
         }
     }.elsewhen(state === sEqual){
         number := 0.U
@@ -53,10 +50,5 @@ class NegIntGen extends Module{
     }
 
     io.value.valid := Mux(state === sEqual,true.B,false.B)
-    when(negNum){
-        // if input is a negative number, assign output with number's 2's complement
-        io.value.bits := ~number + 1.U
-    }.otherwise{
-        io.value.bits := number
-    }
+    io.value.bits := number
 }
