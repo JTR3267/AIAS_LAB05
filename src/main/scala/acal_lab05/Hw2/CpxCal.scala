@@ -133,100 +133,83 @@ class OPstack(val depth: Int) extends Module {
     val sp        = RegInit(0.U(log2Ceil(depth+1).W))
     val pos       = WireDefault(0.U(log2Ceil(depth+1).W))
 
-    for (i <- 0 until depth){
+    val add       = 10.U
+    val sub       = 11.U
+    val mul       = 12.U
+    val leftp     = 13.U
+    val rightp    = 14.U
+
+    for (i <- 0 until 2){
         io.dataOut(i.U) := 0.U
     }
     io.dataOutCount := 0.U
 
     when (io.en) {
         when(io.push) {
-            when(io.dataIn === 10.U || io.dataIn === 11.U) {
+            when(io.dataIn === add || io.dataIn === sub) {
                 // op +-
-                for (i <- 0 until depth){
-                    // find last symbol (
-                    when(i.U < sp && stack_mem(i.U) === 13.U){
-                        pos := i.U
-                    }
-                }
-                when(pos =/= 0.U){
-                    // if found, pop all ops after symbol (
-                    for (i <- 0 until depth){
-                        when(i.U < sp - pos - 1.U){
-                            io.dataOut(i.U) := stack_mem(sp - 1.U - i.U)
-                        }
-                    }
-                    io.dataOutCount := sp - pos - 1.U
-                    stack_mem(pos + 1.U) := io.dataIn
-                    sp := pos + 2.U
-                }.elsewhen(sp > 0.U){
-                    // if not found, but sp > 0, pop all ops
-                    when(stack_mem(0.U) === 13.U){
-                        // check stack_mem(0) may be symbol (
-                        for (i <- 1 until depth){
-                            when(i.U < sp){
-                                io.dataOut(i.U - 1.U) := stack_mem(sp - i.U)
-                            }
-                        }
-                        io.dataOutCount := sp - 1.U
-                        stack_mem(1.U) := io.dataIn
-                        sp := 2.U
-                    }.otherwise{
-                        for (i <- 0 until depth){
-                            when(i.U < sp){
-                                io.dataOut(i.U) := stack_mem(sp - 1.U - i.U)
-                            }
-                        }
-                        io.dataOutCount := sp
-                        stack_mem(0.U) := io.dataIn
-                        sp := 1.U
-                    }
-                }.otherwise{
-                    // else, insert op
+                when(sp === 0.U || (sp > 0.U && stack_mem(sp - 1.U) === leftp)){
+                    // push only
                     stack_mem(sp) := io.dataIn
                     sp := sp + 1.U
-                }
-            }.elsewhen(io.dataIn === 12.U){
-                // op *
-                when(sp > 0.U && stack_mem(sp - 1.U) === 12.U){
-                    // pop and push op * to stack
-                    io.dataOut(0.U)   := 12.U
+                }.elsewhen((sp > 1.U && stack_mem(sp - 2.U) === leftp) || sp === 1.U){
+                    // pop stack head, push io.dataIn
+                    stack_mem(sp - 1.U) := io.dataIn
+                    io.dataOut(0.U) := stack_mem(sp - 1.U)
                     io.dataOutCount := 1.U
                 }.otherwise{
-                    // insert op *
+                    // pop last 2 op, push io.dataIn
+                    stack_mem(sp - 2.U) := io.dataIn
+                    sp := sp - 1.U
+                    io.dataOut(0.U) := stack_mem(sp - 1.U)
+                    io.dataOut(1.U) := stack_mem(sp - 2.U)
+                    io.dataOutCount := 2.U
+                }
+            }.elsewhen(io.dataIn === mul){
+                // op *
+                when(sp > 0.U && stack_mem(sp - 1.U) === mul){
+                    // pop and push op * to stack
+                    io.dataOut(0.U)   := mul
+                    io.dataOutCount := 1.U
+                }.otherwise{
+                    // push op *
                     stack_mem(sp) := io.dataIn
                     sp := sp + 1.U
                 }
-            }.elsewhen(io.dataIn === 13.U){
-                // symbol (, insert only
+            }.elsewhen(io.dataIn === leftp){
+                // symbol (, push only
                 stack_mem(sp) := io.dataIn
                 sp := sp + 1.U
-            }.otherwise{
-                // symbol )
-                for (i <- 0 until depth){
-                    // find last symbol (
-                    when(i.U < sp && stack_mem(i.U) === 13.U){
-                        pos := i.U
-                    }
+            }.elsewhen(io.dataIn === rightp){
+                // symbol ), find last symbol (
+                // pop op after last symbol (
+                when(stack_mem(sp - 1.U) === leftp){
+                    sp := sp - 1.U
+                }.elsewhen(stack_mem(sp - 2.U) === leftp){
+                    sp := sp - 2.U
+                    io.dataOut(0.U) := stack_mem(sp - 1.U)
+                    io.dataOutCount := 1.U
+                }.elsewhen(stack_mem(sp - 3.U) === leftp){
+                    sp := sp - 3.U
+                    io.dataOut(0.U) := stack_mem(sp - 1.U)
+                    io.dataOut(1.U) := stack_mem(sp - 2.U)
+                    io.dataOutCount := 2.U
                 }
-                // pop all ops after symbol (
-                for (i <- 0 until depth){
-                    when(i.U < sp - pos - 1.U){
-                        io.dataOut(i.U) := stack_mem(sp - 1.U - i.U)
-                    }
-                }
-                io.dataOutCount := sp - pos - 1.U
-                sp := pos
             }
         } .elsewhen(io.pop) {
-            // pop all ops from stack, triggered when =
-            io.dataOutCount := sp
-            for (i <- 0 until depth){
-                when(i.U < sp){
-                    io.dataOut(i.U) := stack_mem(sp - 1.U - i.U)
-                }
-            }
             // reset stack
             sp := 0.U
+            // pop all op from stack, triggered when =
+            switch(sp){
+                is(1.U){
+                    io.dataOut(0.U) := stack_mem(0.U)
+                }
+                is(2.U){
+                    io.dataOut(0.U) := stack_mem(1.U)
+                    io.dataOut(1.U) := stack_mem(0.U)
+                }
+            }
+            io.dataOutCount := sp
         }
     }
 }
@@ -259,7 +242,7 @@ class CpxCal extends Module{
     // check input number is negative
     val neg_num = RegInit(false.B)
     // whether need to push number to cal_stack
-    val pass_number = RegInit(false.B)
+    val push_number = RegInit(false.B)
 
     // OP stack
     val op_stack = Module(new OPstack(depth = 8))
@@ -296,16 +279,16 @@ class CpxCal extends Module{
             }
         }
         is(sNum){
-            // when switch state from sNum, set pass_number to true to push number to cal_stack
+            // when switch state from sNum, set push_number to true to push number to cal_stack
             when(operator){
                 state := sOp
-                pass_number := true.B
+                push_number := true.B
             }.elsewhen(equal){
                 state := sEqual
-                pass_number := true.B
+                push_number := true.B
             }.elsewhen(rightP){
                 state := sRight
-                pass_number := true.B
+                push_number := true.B
             }
         }
         is(sOp){
@@ -335,38 +318,11 @@ class CpxCal extends Module{
     when(state === sNum){
         when(in_buffer <= 9.U){
             // for number input
-            pass_number := true.B
+            push_number := true.B
             number := (number<<3.U) + (number<<1.U) + in_buffer
         }.elsewhen(in_buffer === 11.U){
             // input number is negative
             neg_num := true.B
-        }
-    }
-    when(state === sOp || state === sRight){
-        // push op, symbol ) to op_stack
-        op_stack.io.push := true.B
-        op_stack.io.en := true.B
-        op_stack.io.dataIn := in_buffer
-
-        // push number, output op to cal_stack
-        cal_stack.io.push := true.B
-        cal_stack.io.en := true.B
-        
-        when(pass_number){
-            // push number, op
-            when(neg_num){
-                cal_stack.io.dataIn(0.U) := ~number + 1.U
-                neg_num := false.B
-            }
-            cal_stack.io.numIn := true.B
-            cal_stack.io.dataInCount := op_stack.io.dataOutCount + 1.U
-
-            number := 0.U
-            pass_number := false.B
-        }
-        .otherwise{
-            // push op only
-            cal_stack.io.dataInCount := op_stack.io.dataOutCount
         }
     }
     when(state === sLeft){
@@ -375,17 +331,26 @@ class CpxCal extends Module{
         op_stack.io.en := true.B
         op_stack.io.dataIn := in_buffer
     }
-    when(state === sEqual){
-        // pop rest op from op_stack
-        op_stack.io.pop := true.B
+    when(state === sOp || state === sRight || state === sEqual){
         op_stack.io.en := true.B
-
         // push number, output op to cal_stack
-        cal_stack.io.push := true.B
-        cal_stack.io.reset := true.B
-        cal_stack.io.en := true.B
-
-        when(pass_number){
+        when(push_number || op_stack.io.dataOutCount > 0.U){
+            cal_stack.io.push := true.B
+            cal_stack.io.en := true.B
+        }
+        
+        when(state === sOp || state === sRight){
+            // push op, symbol ) to op_stack
+            op_stack.io.push := true.B
+            op_stack.io.dataIn := in_buffer
+        }.elsewhen(state === sEqual){
+            // pop rest op from op_stack
+            op_stack.io.pop := true.B
+            // reset cal_stack
+            cal_stack.io.reset := true.B
+        }
+        
+        when(push_number){
             // push number, op
             when(neg_num){
                 cal_stack.io.dataIn(0.U) := ~number + 1.U
@@ -395,7 +360,7 @@ class CpxCal extends Module{
             cal_stack.io.dataInCount := op_stack.io.dataOutCount + 1.U
 
             number := 0.U
-            pass_number := false.B
+            push_number := false.B
         }.otherwise{
             // push op only
             cal_stack.io.dataInCount := op_stack.io.dataOutCount
