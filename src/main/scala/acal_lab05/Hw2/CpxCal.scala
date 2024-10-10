@@ -164,7 +164,7 @@ class OPstack(val depth: Int) extends Module {
                         // check stack_mem(0) may be symbol (
                         for (i <- 1 until depth){
                             when(i.U < sp){
-                                io.dataOut(i.U) := stack_mem(sp - 1.U - i.U)
+                                io.dataOut(i.U - 1.U) := stack_mem(sp - i.U)
                             }
                         }
                         io.dataOutCount := sp - 1.U
