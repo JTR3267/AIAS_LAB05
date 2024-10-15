@@ -17,6 +17,9 @@ class PRNG(seed:Int) extends Module{
     val shiftReg = RegInit(VecInit(seed.U(16.W).asBools))
     val posReg = RegInit(0.U(2.W))
     val checkDup = WireDefault(false.B)
+    // cycle counter, increase in each cycle
+    val cycleReg = RegInit(0.U(4.W))
+    cycleReg := (cycleReg + 1.U) % 4.U
 
     val sIdle :: sShift :: sCheck :: sSingleShift :: sOut :: Nil = Enum(5)
     val state = RegInit(sIdle)
@@ -78,10 +81,13 @@ class PRNG(seed:Int) extends Module{
                 shiftReg(4.U * posReg + 1.U),
                 shiftReg(4.U * posReg)
             )
-            // if current number equal 0, set it to 1
+            // if current number equal 0, set it to cycleReg
             // otherwise shift the number using LFSR in lab5-3-1
             when(cur_number === 0.U){
-                shiftReg(4.U * posReg + 1.U) := true.B
+                shiftReg(4.U * posReg) := cycleReg(0)
+                shiftReg(4.U * posReg + 1.U) := cycleReg(1)
+                shiftReg(4.U * posReg + 2.U) := cycleReg(2)
+                shiftReg(4.U * posReg + 3.U) := cycleReg(3)
             }.otherwise{
                 shiftReg(4.U * posReg) := shiftReg(4.U * posReg + 1.U)
                 shiftReg(4.U * posReg + 1.U) := shiftReg(4.U * posReg + 2.U)
