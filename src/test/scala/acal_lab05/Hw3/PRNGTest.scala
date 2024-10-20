@@ -12,6 +12,8 @@ class PRNGTest(dut:PRNG) extends PeekPokeTester(dut) {
 
     var error = 0
 
+    val seenOutputs = scala.collection.mutable.Set[Seq[BigInt]]()
+
     for(i <- 1 to 100){
         println(s"The ${i} testing :")
         step(Random.nextInt(10))
@@ -22,6 +24,14 @@ class PRNGTest(dut:PRNG) extends PeekPokeTester(dut) {
 
         var out = Seq.range(0,4).map{x => peek(dut.io.puzzle(x))}
 
+        // Check if the output has already appeared
+        if (seenOutputs.contains(out)) {
+            println(s"Repeated output detected: $out")
+            error += 1
+        } else {
+            seenOutputs += out
+        }
+
         var check = out.map{x=>(1<<(x.toInt))}.reduce(_+_)
         var count = 0
 
@@ -29,9 +39,7 @@ class PRNGTest(dut:PRNG) extends PeekPokeTester(dut) {
             count = count + (check & 0x1)
             check = check >> 1
         }
-
         println("Output : " + out(3) +" "+ out(2) +" "+ out(1) +" "+ out(0))
-
         if(count != 4){
             println("Oh no!! There must be something wrong in your PRNG...Correct these situations...")
             error += 1
