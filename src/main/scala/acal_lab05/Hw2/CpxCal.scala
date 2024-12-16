@@ -11,15 +11,15 @@ class CALstack(val depth: Int) extends Module {
         // whether input contains num
         val numIn       = Input(Bool())
         // 0 for num, 1, 2 for op
-        val dataIn      = Input(Vec(3, UInt(32.W)))
+        val dataIn      = Input(Vec(3, UInt(128.W)))
         // count of valid dataIn
         val dataInCount = Input(UInt(2.W))
-        val dataOut     = Output(UInt(32.W))
+        val dataOut     = Output(UInt(128.W))
     })
 
-    val stack_mem = Mem(depth, UInt(32.W))
+    val stack_mem = Mem(depth, UInt(128.W))
     val sp        = RegInit(0.U(log2Ceil(depth+1).W))
-    val out       = WireDefault(0.U(32.W))
+    val out       = WireDefault(0.U(128.W))
 
     val add       = 10.U
     val sub       = 11.U
@@ -217,7 +217,7 @@ class OPstack(val depth: Int) extends Module {
 class CpxCal extends Module{
     val io = IO(new Bundle{
         val key_in = Input(UInt(4.W))
-        val value = Output(Valid(UInt(32.W)))
+        val value = Output(Valid(UInt(128.W)))
     })
 
     //please implement your code below
@@ -238,21 +238,21 @@ class CpxCal extends Module{
 
     //Reg Declaration====================================
     val in_buffer = RegNext(io.key_in)
-    val number = RegInit(0.U(32.W))
+    val number = RegInit(0.U(128.W))
     // check input number is negative
     val neg_num = RegInit(false.B)
     // whether need to push number to cal_stack
     val push_number = RegInit(false.B)
 
     // OP stack
-    val op_stack = Module(new OPstack(depth = 8))
+    val op_stack = Module(new OPstack(depth = 16))
     op_stack.io.push   := false.B
     op_stack.io.pop    := false.B
     op_stack.io.en     := false.B
     op_stack.io.dataIn := 0.U
 
     // Cal stack
-    val cal_stack = Module(new CALstack(depth = 8))
+    val cal_stack = Module(new CALstack(depth = 16))
     cal_stack.io.push   := false.B
     cal_stack.io.reset  := false.B
     cal_stack.io.en     := false.B
