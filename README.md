@@ -1034,16 +1034,6 @@ class NumGuess(seed:Int = 1) extends Module{
 
 ![](https://course.playlab.tw/md/uploads/520f7dcc-b5dc-4b35-897e-1b8edf935a56.png)
 
-## Bonus : 1A2B hardware solver [Optional]
-### Scala Code
-> 請放上你的程式碼並加上註解(中英文不限)，讓 TA明白你是如何完成的。
-```scala=
-## scala code & comment
-```
-### Test Result
-> 請放上你通過test的結果，驗證程式碼的正確性。(螢幕截圖即可)
-
-
 ## 文件中的問答題
 - Q1:Hw5-2-2(長算式)以及Lab5-2-2(短算式)，需要的暫存器數量是否有差別？如果有，是差在哪裡呢？
     - Ans1: 我的 Hw5-2-2 暫存器數量與 Lab5-2-2 相同，src1 負責接第一個數字、暫存計算結果，src2 負責接第二個~最後一個數字
